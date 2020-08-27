@@ -1,0 +1,341 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+
+<script> // remap to ssl so geolocation works
+	if(window.location.protocol != 'https:') {
+    	location.href = location.href.replace("http://", "https://");
+    }
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-4285018-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-4285018-1');
+</script>
+
+<title>My 5k compass</title>
+
+	<meta name="robots" content="noindex, nofollow">
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.js'></script>
+	<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css' rel='stylesheet' />
+
+<style type="text/css">
+	html, body {
+		height: 100%;
+		padding: 0;
+		margin: 0;
+	}
+	#map {
+		position: absolute;
+		width: 100%;
+		height: 100vh;
+	}
+	.mapboxgl-popup {
+		max-width: 400px;
+		font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+	}
+	#loc {
+		position: absolute;
+		top: 10px;
+		left: -999em;
+		padding:5px;
+		font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+		background-color: rgba(255, 255, 255, 0.7);
+	}
+	.lockdiv {
+	    position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 99;
+		background-color: rgba(255, 255, 255, 0.8);
+		padding: 0.5rem;
+		font: 14px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+		font-weight: bold;
+	}
+	#helpdiv {
+	    position: absolute;
+		top: 2.5rem;
+		left: -50rem;
+		width: 100%;
+		max-width: 25rem;
+		z-index: 99;
+		background-color: rgba(255, 255, 255, 0.8);
+		padding: 0.5rem;
+		font: 14px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+	}
+	@media print {
+		html, body, #map {
+			height: 100%;
+			width: 100%;
+		}
+		.mapboxgl-ctrl-top-right, .lockdiv {
+			display:none;
+		}
+		#loc {
+			left: 10px;
+		}
+	}
+</style>	
+<style>
+	.mapboxgl-popup {
+		max-width: 400px;
+		font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+	}
+</style>
+
+</head>
+<body>
+    <div id="map"></div>
+	<div id="loc"></div>
+	<div class="lockdiv"><form action=""><label><input type="checkbox" id="lock"> Lock</label> : <a href="#helpdiv" id="showHelp">?</a></form></div>
+	<div id="helpdiv">
+		<h2>Ride to the limits!</h2>
+		<p>You've been locked down for weeks. You've walked every path in your neighbourhood at least five times. What do you do to stay healthy and amused? Random stuff!</p>
+		<p>With the lock (above) unchecked, move the map to center it on your home. When you're happy with the location, check the lock, and bookmark it so you can come back any time.</p>
+		<p>Click on the points to get directions.</p>
+		<p>Ride to the 16 compass points on your 5k radius. <i>(Unless you live within 5k of the bay, in which case, I have no sympathy!)</i></p>
+		<p><strong>Pro tip:</strong> the last number in the URL is the radius, make it smaller if you want to run or walk.</p>
+		<button id="hideBtn">Hide this</button>
+	</div>
+
+<script>
+/*
+Hi there.
+Don't judge my javascript! I KNOW it's incredibly verbose,
+but I use this stuff to learn, so when I come back to look
+at it in the future, I can see exactly what went on.
+
+Stuff I want to do:
+- automate the setting of all those variables
+- adjust the km distance based on longitude (currently set for 40°)
+*/
+	var params = [];
+	var params = window.location.hash.replace('#map=', '').split('/');
+	var startCtr = [params[2] || 144.9676, params[1] || -37.8175];
+	var r = parseFloat([params[3] || 5]);
+	var latlng = startCtr;
+	var currentMarkers=[];
+	var checkBox = document.getElementById("lock");
+
+	var helpdiv = document.getElementById('helpdiv');
+	if (params.length > 2){
+		checkBox.checked = true;
+	}else{
+		helpdiv.style.left = "0";
+	}
+	
+	var hideBtn = document.getElementById('hideBtn');
+	hideBtn.onclick = function(){helpdiv.style.left = "-50rem"};
+	var showHelp = document.getElementById('showHelp');
+	showHelp.onclick = function(){helpdiv.style.left = "0"; return false;};
+
+	mapboxgl.accessToken = 'pk.eyJ1Ijoid29vd29vd29vIiwiYSI6IllhUjVBalEifQ.gXHtT-wV2I4_Kf1VgCSmkA';
+	var map = new mapboxgl.Map({
+		container: 'map', // container id
+		style: 'mapbox://styles/mapbox/outdoors-v11', //stylesheet location
+		center: [startCtr[0], startCtr[1]], // starting position
+		zoom: params[0] || 11 // starting zoom
+	});
+
+	map.addControl(new mapboxgl.NavigationControl());
+
+	map.setMaxZoom(19);
+
+	map.addControl(new mapboxgl.GeolocateControl({
+		positionOptions: {
+		enableHighAccuracy: true
+		},
+		trackUserLocation: false
+	}));
+
+	map.addControl(new mapboxgl.ScaleControl({maxWidth: 200}));
+
+	map.on('moveend', function(){
+		// If the checkbox is checked, display the output text
+		if (checkBox.checked == false){
+			zoom = map.getZoom();
+			latlng = map.getCenter();
+			newHash= "#map=" + zoom.toFixed(1) + "/" + latlng.lat.toFixed(4) + "/" + latlng.lng.toFixed(4) + "/" + r;
+			location.hash = newHash;
+			showLoc(latlng);
+			calcPoints(latlng.lat,latlng.lng,r);
+		}		
+	});
+
+	function showLoc(latlng){
+		var locInfo = document.getElementById('loc');
+		locInfo.innerHTML = window.location;
+	}
+
+	showLoc();
+
+/* ============= */
+
+function calcPoints(lat,lng,r){
+
+var oLng = parseFloat(lng);
+var oLat = parseFloat(lat);
+
+var o = [];
+o.push(oLng,oLat);
+
+// clean out the last set
+var points = [];
+
+// at 40° a degree of Longitude is about 85km
+// but it varies from 111.321 at the equator to 0 at the poles
+// and a degree of Latitude is about 111km all the way
+// define one km as our base unit in lat and lng
+
+var uLng = 0.011765;
+var uLat = 0.009009;
+
+// multiply these by our radius for the offset of 1 radius
+var rLng = r * 0.011765;
+var rLat = r * 0.009009;
+
+// at 45° the offsets are 0.7071 of the radius each way
+var eqLng = rLng * 0.7071;
+var eqLat = rLat * 0.7071;
+
+// at 22.5° increments there's a long offset and a short offset
+
+var longLng = rLng * 0.923879;
+var longLat = rLat * 0.923879;
+
+var shortLng = rLng * 0.382683;
+var shortLat = rLat * 0.382683;
+
+// going east, Longitude increases
+// going north, Latitude increases
+// (in the southern hemisphere, the negative number gets smaller)
+
+var n = [];
+var e = [];
+var s = [];
+var w = [];
+var ne = [];
+var se = [];
+var sw = [];
+var nw = [];
+var nne = [];
+var ene = [];
+var ese = [];
+var sse = [];
+var ssw = [];
+var wsw = [];
+var wnw = [];
+var nnw = [];
+
+n.label = "North";
+e.label = "East";
+s.label = "South";
+w.label = "West";
+ne.label = "North East";
+se.label = "South East";
+sw.label = "South West";
+nw.label = "North West";
+nne.label = "North by North East";
+ene.label = "East by North East";
+ese.label = "East by South East";
+sse.label = "South by South East";
+ssw.label = "South by South West";
+wsw.label = "West by South West";
+wnw.label = "West by North West";
+nnw.label = "North by North West";
+
+n.lng = oLng;
+n.lat = oLat + rLat;
+e.lng = oLng + rLng;
+e.lat = oLat;
+s.lng = oLng;
+s.lat = oLat - rLat;
+w.lng = oLng - rLng;
+w.lat = oLat;
+
+ne.lng = oLng + eqLng;
+ne.lat = oLat + eqLat;
+se.lng = oLng + eqLng;
+se.lat = oLat - eqLat;
+sw.lng = oLng - eqLng;
+sw.lat = oLat - eqLat;
+nw.lng = oLng - eqLng;
+nw.lat = oLat + eqLat;
+
+nne.lng = oLng + shortLng;
+nne.lat = oLat + longLat;
+ene.lng = oLng + longLng;
+ene.lat = oLat + shortLat;
+ese.lng = oLng + longLng;
+ese.lat = oLat - shortLat;
+sse.lng = oLng + shortLng;
+sse.lat = oLat - longLat;
+ssw.lng = oLng - shortLng;
+ssw.lat = oLat - longLat;
+wsw.lng = oLng - longLng;
+wsw.lat = oLat - shortLat;
+wnw.lng = oLng - longLng;
+wnw.lat = oLat + shortLat;
+nnw.lng = oLng - shortLng;
+nnw.lat = oLat + longLat;
+
+points.push(n,s,e,w,ne,se,sw,nw,nne,ene,ese,sse,ssw,wsw,wnw,nnw);
+drawPoints(o,points);
+
+}
+
+function drawPoints(o,points){
+	
+	// clear out the old markers first
+	if (currentMarkers.length > 0) {
+		for (var i = currentMarkers.length - 1; i >= 0; i--) {
+			currentMarkers[i].remove(); // removes markers - doesn't remove array items
+		}
+		currentMarkers = []; // clears the array
+	}
+
+	var oPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+	'<strong>Origin</strong>'
+	);
+
+	// set an origin marker
+	var marker = new mapboxgl.Marker({"color":"#FF3D1D"}) //
+	.setLngLat(o)
+	.setPopup(oPopup) // sets a popup on this marker
+	.addTo(map);
+	currentMarkers.push(marker);
+
+	// now the rest of them
+	for (i = 0; i < points.length; i++) {
+		var dPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+		'<strong>' + points[i].label + '</strong><br>'
+		+ points[i].lng.toFixed(4) + "," + points[i].lat.toFixed(4) + '<br>'
+		+ 'Get directions: <a href="https://www.openstreetmap.org/directions?engine=fossgis_osrm_bike&route=' + o[1] + ',' + o[0] + ';' + points[i].lat + ',' + points[i].lng + '" target="_blank">OSM</a>, <a href="https://www.google.com.au/maps/dir/' + o[1] + ',' + o[0] + '/' + points[i].lat + ',' + points[i].lng + '" target="_blank">Google</a>'
+		);
+
+		var marker = new mapboxgl.Marker({"color":"#9E00FF"})
+		.setLngLat([points[i].lng,points[i].lat])
+		.setPopup(dPopup) // sets a popup on this marker
+		.addTo(map);
+		currentMarkers.push(marker);
+	}
+
+}
+
+// call the function with the values entered in the URL
+calcPoints(latlng[1],latlng[0],r);
+
+</script>
+
+</body>
+
+</html>
