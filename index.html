@@ -123,7 +123,7 @@ Stuff I want to do:
 	var startCtr = [params[2] || 144.9676, params[1] || -37.8175];
 	var r = parseFloat([params[3] || 5]);
 	var latlng = startCtr;
-	var currentMarkers=[];
+	var currentMarkers=[], roundTrip="";
 	var checkBox = document.getElementById("lock");
 
 	var helpdiv = document.getElementById('helpdiv');
@@ -288,7 +288,7 @@ wnw.lat = oLat + shortLat;
 nnw.lng = oLng - shortLng;
 nnw.lat = oLat + longLat;
 
-points.push(n,s,e,w,ne,se,sw,nw,nne,ene,ese,sse,ssw,wsw,wnw,nnw);
+points.push(n,nne,ne,ene,e,ese,se,sse,s,ssw,sw,wsw,w,wnw,nw,nnw);
 drawPoints(o,points);
 
 }
@@ -301,10 +301,30 @@ function drawPoints(o,points){
 			currentMarkers[i].remove(); // removes markers - doesn't remove array items
 		}
 		currentMarkers = []; // clears the array
+		roundTrip = [];
 	}
 
+	// first process the perimeter points
+	for (i = 0; i < points.length; i++) {
+		var currLat = points[i].lat.toFixed(4),currLng = points[i].lng.toFixed(4);
+		var dPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+		'<strong>' + points[i].label + '</strong><br>'
+		+ currLng + "," + currLat + '<br>'
+		+ 'Get directions: <a href="https://www.openstreetmap.org/directions?engine=fossgis_osrm_bike&route=' + o[1] + ',' + o[0] + ';' + currLat + ',' + currLng + '" target="_blank">OSM</a>, <a href="https://www.google.com.au/maps/dir/' + o[1] + ',' + o[0] + '/' + currLat + ',' + currLng + '" target="_blank">Google</a>'
+		);
+
+		var marker = new mapboxgl.Marker({"color":"#9E00FF"})
+		.setLngLat([currLng,currLat])
+		.setPopup(dPopup) // sets a popup on this marker
+		.addTo(map);
+		currentMarkers.push(marker);
+
+		roundTrip += currLat + ',' + currLng + '/';
+	}
+	console.log(roundTrip);
+
 	var oPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-	'<strong>Origin</strong>'
+	'<strong>Origin</strong><br><a href="https://www.google.com.au/maps/dir/' + o[1] + ',' + o[0] + '/' + roundTrip + o[1] + ',' + o[0] + '/' + '" target="_blank">All around (Google)</a>'
 	);
 
 	// set an origin marker
@@ -313,21 +333,6 @@ function drawPoints(o,points){
 	.setPopup(oPopup) // sets a popup on this marker
 	.addTo(map);
 	currentMarkers.push(marker);
-
-	// now the rest of them
-	for (i = 0; i < points.length; i++) {
-		var dPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-		'<strong>' + points[i].label + '</strong><br>'
-		+ points[i].lng.toFixed(4) + "," + points[i].lat.toFixed(4) + '<br>'
-		+ 'Get directions: <a href="https://www.openstreetmap.org/directions?engine=fossgis_osrm_bike&route=' + o[1] + ',' + o[0] + ';' + points[i].lat + ',' + points[i].lng + '" target="_blank">OSM</a>, <a href="https://www.google.com.au/maps/dir/' + o[1] + ',' + o[0] + '/' + points[i].lat + ',' + points[i].lng + '" target="_blank">Google</a>'
-		);
-
-		var marker = new mapboxgl.Marker({"color":"#9E00FF"})
-		.setLngLat([points[i].lng,points[i].lat])
-		.setPopup(dPopup) // sets a popup on this marker
-		.addTo(map);
-		currentMarkers.push(marker);
-	}
 
 }
 
