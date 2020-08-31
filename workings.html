@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+</head>
+<body>
+<div id="output"></div>
+<script>
+var output = document.getElementById("output");
+
+var lat = 40;
+
+var rad = (90 - lat) * Math.PI / 180;
+output.innerHTML = 360 /(Math.sin(rad) * 6378 * 2 * Math.PI);
+
+</script>
+</body>
+</html>
