@@ -191,17 +191,21 @@ o.push(oLng,oLat);
 // clean out the last set
 var points = [];
 
-// at 40° a degree of Longitude is about 85km
-// but it varies from 111.321 at the equator to 0 at the poles
-// and a degree of Latitude is about 111km all the way
-// define one km as our base unit in lat and lng
+// Need to define one km as our base unit in lat and lng
 
-var uLng = 0.011765;
+// A degree of longitude is 111.321km at the equator and 0km at the poles
+// convert degrees to radians
+// the latitude is subtracted from 90, because the offset we need is from the pole
+var rad = (90 - oLat) * Math.PI / 180; 
+var uLng = 360 /(Math.sin(rad) * 12756 * Math.PI);
+// assumes the earth is round, so may not work in parts of the US
+
+// a km of latitude is a fairly constant 1/111 degrees
 var uLat = 0.009009;
 
 // multiply these by our radius for the offset of 1 radius
-var rLng = r * 0.011765;
-var rLat = r * 0.009009;
+var rLng = r * uLng;
+var rLat = r * uLat;
 
 // at 45° the offsets are 0.7071 of the radius each way
 var eqLng = rLng * 0.7071;
@@ -321,7 +325,6 @@ function drawPoints(o,points){
 
 		roundTrip += currLat + ',' + currLng + '/';
 	}
-	console.log(roundTrip);
 
 	var oPopup = new mapboxgl.Popup({ offset: 25 }).setHTML(
 	'<strong>Origin</strong><br><a href="https://www.google.com.au/maps/dir/' + o[1] + ',' + o[0] + '/' + roundTrip + o[1] + ',' + o[0] + '/' + '" target="_blank">All around (Google)</a>'
